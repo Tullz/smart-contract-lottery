@@ -75,4 +75,14 @@ contract RaffleTest is Test {
         vm.prank(PLAYER);
         raffle.enterRaffle{value: entranceFee}();
     }
+
+    function testRaffleHandlesEntriesWithDifferentAmountsOfEther() public {
+        address player2 = makeAddr("player2");
+        vm.deal(player2, STARTING_USER_BALANCE);
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+        vm.prank(player2);
+        raffle.enterRaffle{value: 2 * entranceFee}();
+        assertEq(raffle.getPlayer(1), player2);
+    }
 }
