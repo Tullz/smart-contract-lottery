@@ -6,6 +6,7 @@ import {DeployRaffle} from "../../script/DeployRaffle.s.sol";
 import {Raffle} from "../../src/Raffle.sol";
 import {Test, console} from "forge-std/Test.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 contract RaffleTest is Test {
     //EVENTS - have to remake them in the test contract
@@ -141,12 +142,51 @@ contract RaffleTest is Test {
     }
 
     //PERFORM UPKEEP TESTS
-    function testPerformUpkeepSucceedsIfUpkeepMet() public {
+    function testPerformUpkeepCanOnlyRunIfCheckUpkeepIsTrue() public {
         vm.prank(PLAYER);
         raffle.enterRaffle{value: entranceFee}();
         vm.warp(block.timestamp + interval + 1);
         vm.roll(block.number + 1);
+
+        raffle.performUpkeep(""); //this passes without the need for an assert
+    }
+
+    function testPerformUpkeepRevertsIfCheckUpkeepIsFalse() public {
+        uint256 currentBalance = 0;
+        uint256 numPlayers = 0;
+        uint256 raffleState = 0;
+
+        vm.expectRevert(
+            abi.encodeWithSelector( // this is how you handle custom errors WITH parameters
+                Raffle.Raffle__UpkeepNotNeeded.selector,
+                currentBalance,
+                numPlayers,
+                raffleState
+            )
+        );
         raffle.performUpkeep("");
-        assert(raffle.getRaffleState() == Raffle.RaffleState.CALCULATING);
+    }
+
+    modifier raffleEnteredAndTimePassed() {
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+        _;
+    }
+
+    function testPerformUpkeepUpdatesRaffleStateAndEmitsRequiestId()
+        public
+        raffleEnteredAndTimePassed
+    {
+        vm.recordLogs();
+        raffle.performUpkeep(""); //emits requestid
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        bytes32 requestId = entries[1].topics[1]; //entry 0 is the event vrfCoord mock emits, topic 0 is the whole event being emitted, topic 1 is requestId within that event
+        Raffle.RaffleState rState = raffle.getRaffleState();
+
+        assert(uint256(requestId) != 0);
+        assert(rState == Raffle.RaffleState.CALCULATING);
     }
 }

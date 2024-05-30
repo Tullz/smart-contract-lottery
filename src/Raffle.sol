@@ -50,6 +50,7 @@ contract Raffle is VRFConsumerBaseV2 {
     /** EVENTS */
     event EnteredRaffle(address indexed player);
     event PickedWinner(address indexed winner);
+    event RequestedRaffleWinner(uint256 indexed winner);
 
     constructor(
         uint256 entranceFee,
@@ -96,7 +97,7 @@ contract Raffle is VRFConsumerBaseV2 {
         bool timeHasPassed = (block.timestamp - s_lastTimeStamp) >= i_interval; //has enough time passed
         bool isOpen = RaffleState.OPEN == s_raffleState;
         bool hasBalance = address(this).balance > 0;
-        bool hasPlayers = s_players.length > 0; 
+        bool hasPlayers = s_players.length > 0;
         upkeepNeeded = (timeHasPassed && isOpen && hasBalance && hasPlayers);
         return (upkeepNeeded, "0x0");
     }
@@ -106,7 +107,8 @@ contract Raffle is VRFConsumerBaseV2 {
     //3. be automatically called
     function performUpkeep(bytes calldata /* performData */) external {
         (bool upkeepNeeded, ) = checkUpkeep("");
-        if (!upkeepNeeded) { //@audit need to test this
+        if (!upkeepNeeded) {
+            //@audit-ok tested.
             revert Raffle__UpkeepNotNeeded(
                 address(this).balance,
                 s_players.length,
@@ -116,13 +118,14 @@ contract Raffle is VRFConsumerBaseV2 {
 
         s_raffleState = RaffleState.CALCULATING; //makes it so no one else can enter raffle while in this stage
 
-        i_vrfCoordinator.requestRandomWords(
+        uint256 requestID = i_vrfCoordinator.requestRandomWords(
             i_gasLane,
             i_subscriptionId,
             REQUEST_CONFIRMAITONS,
             i_callbackGasLimit,
             NUM_WORDS //number of randoms generated
         );
+        emit RequestedRaffleWinner(requestID);
     }
 
     // CEI: Checks, Effects, Interactions
