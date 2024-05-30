@@ -4,6 +4,7 @@ pragma solidity ^0.8.18;
 
 import {VRFCoordinatorV2Interface} from "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import {VRFConsumerBaseV2} from "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+import {console} from "forge-std/Test.sol";
 
 /**
  * @title A sample Raffle Contract
@@ -95,7 +96,7 @@ contract Raffle is VRFConsumerBaseV2 {
         bool timeHasPassed = (block.timestamp - s_lastTimeStamp) >= i_interval; //has enough time passed
         bool isOpen = RaffleState.OPEN == s_raffleState;
         bool hasBalance = address(this).balance > 0;
-        bool hasPlayers = s_players.length > 0;
+        bool hasPlayers = s_players.length > 0; 
         upkeepNeeded = (timeHasPassed && isOpen && hasBalance && hasPlayers);
         return (upkeepNeeded, "0x0");
     }
@@ -105,7 +106,7 @@ contract Raffle is VRFConsumerBaseV2 {
     //3. be automatically called
     function performUpkeep(bytes calldata /* performData */) external {
         (bool upkeepNeeded, ) = checkUpkeep("");
-        if (!upkeepNeeded) {
+        if (!upkeepNeeded) { //@audit need to test this
             revert Raffle__UpkeepNotNeeded(
                 address(this).balance,
                 s_players.length,
@@ -135,7 +136,6 @@ contract Raffle is VRFConsumerBaseV2 {
         uint256 indexOfWinnner = randomWords[0] % s_players.length;
         address payable winner = s_players[indexOfWinnner];
         s_recentWinner = winner;
-        //s_raffleState = RaffleState.OPEN;
         s_raffleState = RaffleState.OPEN;
         s_players = new address payable[](0); //reset players array ready for new lottery
         s_lastTimeStamp = block.timestamp; //reset timestamp for new lottery
