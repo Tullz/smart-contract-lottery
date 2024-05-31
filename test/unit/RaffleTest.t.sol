@@ -7,6 +7,7 @@ import {Raffle} from "../../src/Raffle.sol";
 import {Test, console} from "forge-std/Test.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {Vm} from "forge-std/Vm.sol";
+import {VRFCoordinatorV2Mock} from "@chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol";
 
 contract RaffleTest is Test {
     //EVENTS - have to remake them in the test contract
@@ -188,5 +189,64 @@ contract RaffleTest is Test {
 
         assert(uint256(requestId) != 0);
         assert(rState == Raffle.RaffleState.CALCULATING);
+    }
+
+    //fulFillRandomWords TESTS
+
+    function testFuzz_FulfillRandomWordsCanOnlyBeCalledAfterPerformUpkeep(
+        uint256 randRequestId //this number will get fuzzed
+    ) public raffleEnteredAndTimePassed {
+        //arrange
+        vm.expectRevert("nonexistent request"); //line 106 in VRFCoordinatorV2Mock.sol throws this error if requestId is not valid
+        VRFCoordinatorV2Mock(vrfCoordinator).fulfillRandomWords(
+            randRequestId,
+            address(raffle)
+        );
+    }
+
+    function testFulfillRandomWordsPicksAwinnerResetsAndSendsMoney()
+        public
+        raffleEnteredAndTimePassed
+    {
+        uint256 additionalEntrants = 5;
+        uint256 startingIndex = 1; //we already have one entered from the modifier
+        for (
+            uint256 i = startingIndex;
+            i < startingIndex + additionalEntrants;
+            i++
+        ) {
+            address player = address(uint160(i)); //equivalent to address(1), address(2), etc
+            hoax(player, STARTING_USER_BALANCE); //hoax = equivalent to vm.deal then vm.prank
+            raffle.enterRaffle{value: entranceFee}();
+        }
+
+        uint256 prize = entranceFee * (additionalEntrants + 1);
+
+        vm.recordLogs();
+        raffle.performUpkeep("");
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        bytes32 requestId = entries[1].topics[1];
+
+        uint256 prevTimestamp = raffle.getLastTimestamp(); //get the timestamp from before fulfillRandomWords is called
+
+        vm.recordLogs();
+        VRFCoordinatorV2Mock(vrfCoordinator).fulfillRandomWords(
+            uint256(requestId),
+            address(raffle)
+        );
+        entries = vm.getRecordedLogs();
+        bytes32 winner = entries[0].topics[1]; //fulfillRandomWordsWithOverride in vrf mock has an emit that is in entries[0]
+
+        //asserts
+        assert(raffle.getRaffleState() == Raffle.RaffleState.OPEN);
+        assert(address(raffle).balance == 0);
+        assert(raffle.getRecentWinner() != address(0));
+        assert(raffle.getNumPlayers() == 0);
+        assert(prevTimestamp < raffle.getLastTimestamp());
+        assert(address(uint160(uint256(winner))) == raffle.getRecentWinner()); //converting bytes32 to address
+        assert(
+            raffle.getRecentWinner().balance ==
+                (STARTING_USER_BALANCE + prize - entranceFee)
+        );
     }
 }
