@@ -19,3 +19,10 @@ This code creates a proveably random smart contract lottery
    1. local chain
    2. forked testnet
    3. forked mainnet
+
+## Coverage check
+forge coverage --report debug > coverage.txt
+
+## NOTE
+
+- This will only work locally on anvil chain as it is configured for VRFCoordinator v2.0 which is now deprecated with v2.5 being the new standard. The code has not been refactored to handle the new v2.5 VRF

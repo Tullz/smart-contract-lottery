@@ -37,7 +37,8 @@ contract RaffleTest is Test {
             gasLane,
             subscriptionId,
             callbackGasLimit,
-            link
+            link,
+
         ) = helperConfig.activeNetworkConfig();
         vm.deal(PLAYER, STARTING_USER_BALANCE);
     }
@@ -193,9 +194,17 @@ contract RaffleTest is Test {
 
     //fulFillRandomWords TESTS
 
+    modifier skipFork() {
+        //only runs on anvil
+        if (block.chainid != 31337) {
+            return;
+        }
+        _;
+    }
+
     function testFuzz_FulfillRandomWordsCanOnlyBeCalledAfterPerformUpkeep(
         uint256 randRequestId //this number will get fuzzed
-    ) public raffleEnteredAndTimePassed {
+    ) public raffleEnteredAndTimePassed skipFork {
         //arrange
         vm.expectRevert("nonexistent request"); //line 106 in VRFCoordinatorV2Mock.sol throws this error if requestId is not valid
         VRFCoordinatorV2Mock(vrfCoordinator).fulfillRandomWords(
@@ -207,6 +216,7 @@ contract RaffleTest is Test {
     function testFulfillRandomWordsPicksAwinnerResetsAndSendsMoney()
         public
         raffleEnteredAndTimePassed
+        skipFork
     {
         uint256 additionalEntrants = 5;
         uint256 startingIndex = 1; //we already have one entered from the modifier

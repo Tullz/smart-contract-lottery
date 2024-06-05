@@ -15,8 +15,11 @@ contract HelperConfig is Script {
         uint64 subscriptionId;
         uint32 callbackGasLimit;
         address link;
+        uint256 deployerKey;
     }
 
+    uint256 public constant DEFAULT_ANVIL_KEY =
+        0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
     NetworkConfig public activeNetworkConfig;
 
     constructor() {
@@ -27,7 +30,7 @@ contract HelperConfig is Script {
         }
     }
 
-    function getSepoliaEthConfig() public pure returns (NetworkConfig memory) {
+    function getSepoliaEthConfig() public view returns (NetworkConfig memory) {
         return
             NetworkConfig({
                 entranceFee: 0.01 ether,
@@ -36,7 +39,8 @@ contract HelperConfig is Script {
                 gasLane: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
                 subscriptionId: 0, //update this with our subID
                 callbackGasLimit: 500000, // 500.000 gas
-                link: 0x779877A7B0D9E8603169DdbD7836e478b4624789 // this is the address of the LINK token contract on Sepolia
+                link: 0x779877A7B0D9E8603169DdbD7836e478b4624789, // this is the address of the LINK token contract on Sepolia
+                deployerKey: vm.envUint("SEPOLIA_PRIV_KEY")
             });
     }
 
@@ -63,7 +67,8 @@ contract HelperConfig is Script {
                 gasLane: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae, //doesnt matter
                 subscriptionId: 0, //our script should add this
                 callbackGasLimit: 5000000, // 500.000 gas
-                link: address(new LinkToken()) // this will deploy a mock LINK token contract for use on local network
+                link: address(new LinkToken()), // this will deploy a mock LINK token contract for use on local network
+                deployerKey: DEFAULT_ANVIL_KEY
             });
     }
 }
