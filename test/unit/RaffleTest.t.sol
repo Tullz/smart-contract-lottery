@@ -91,6 +91,11 @@ contract RaffleTest is Test {
         assertEq(raffle.getPlayer(1), player2);
     }
 
+    //GETTER TEST
+    function testGetEntranceFeeReturnsCorrectValue() public view {
+        assertEq(raffle.getEntranceFee(), entranceFee);
+    }
+
     //CHECK UPKEEP TESTS
     function testCheckUpkeepReturnsFalseIfItHasNoBalance() public {
         vm.warp(block.timestamp + interval + 1);
